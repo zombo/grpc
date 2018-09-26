@@ -1,0 +1,54 @@
+
+## Why do we need a 'polling engine' ?
+
+Polling engine component was created for the following reasons:
+
+- gRPC code deals with a bunch of file descriptors on which events like descriptor being readable/writable/error have to be monitored
+- gRPC code knows the actions to perform when such events happen
+ -  For example:
+   - `grpc_endpoint` code calls recvmsg call when the fd is readable and sendmsg call when the fd is writable
+   - ` tcp_client` connect code issues async connect and finishes creating the client once the fd is writable (i.e when the connect actually finished)
+- gRPC needed some component that can "efficiently" to the above operations __using the threads provided by the applications (i.e not create any new threads)__.  Also by "efficiently" we mean optimized for latency and throughput
+
+
+## Polling Engine Interface and Implementations
+There are multiple polling engine implementations depending on the OS and the OS version.  Fortunately all of them expose the same interface
+  
+- Linux: 
+
+  - **epollex** (default but requires kernel version >= 4.5),
+  - epoll1 (If epollex is not available and glibc version >= 2.9)
+  - epollsig (if epollex, epoll1 are unavailable AND Kernel has epoll support)
+  - poll (if kernel NOT have epoll support)
+- Mac: **poll** (default), poll-cv
+- Windows: (no name)
+- One-off polling engines:
+  - AppEngine platform: poll-cv (default)
+  - NodeJS : libuv polling engine implementation (requires different compile # defs)
+ 
+### Opaque Structures exposed by the polling engine
+The following are the **Opaque** structures exposed by Polling Engine interface (NOTE: Different polling engine implementations have different definitions of these structures)
+
+- **`grpc_fd:`** Structure representing a file descriptor
+- **`grpc_pollset:`** A set of one or more grpc_fds that are ‘polled’ for readable/writable/error events. One grpc_fd can be in multiple grpc_pollsets
+- **`grpc_pollset_worker`:** Structure representing a ‘polling thread’ - more specifically, the thread that calls grpc_pollset_work() API 
+- **`grpc_pollset_set`:** A group of grpc_fds, grpc_pollsets and grpc_pollset_sets (yes, a grpc_pollset_set can contain other grpc_pollset_sets)
+
+### APIs
+
+#### grpc_fd
+- **`grpc_fd_notify_on_[read|write|error]`**
+  - Signature: `grpc_fd_notify_on_(grpc_fd* fd, grpc_closure* closure)`
+  - Register a closure to be called when the fd becomes readable/writable or has an error (In grpc parlance, we refer to this act as “arming the fd”)
+  - The closure is called exactly once per event. I.e once the fd becomes readable (or writable or error), the closure is fired and the fd is ‘unarmed’. To be notified again, the fd has to be armed again.
+
+- **`grpc_fd_shutdown`**
+  - `Signature: grpc_fd_shutdown(grpc_fd* fd)`
+  - Any current (or future) closures registered for readable/writable/error events are scheduled immediately with an error
+
+- **`grpc_fd_orphan`**
+  - `Signature: grpc_fd_orphan(grpc_fd* fd, grpc_closure* on_done, int* release_fd, char* reason)`
+  - Release the grpc_fd structure and call on_done closure when the operation is complete
+If release_fd is set to nullptr, then close() the underlying fd as well. If not, put the underlying fd in release_fd (and do not call close())
+release_fd set to non-null in cases where the underlying fd is NOT owned by grpc core (like for example the fds used by C-Ares DNS resolver )
+
