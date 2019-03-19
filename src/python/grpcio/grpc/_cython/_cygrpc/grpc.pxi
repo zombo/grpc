@@ -13,14 +13,7 @@
 # limitations under the License.
 
 cimport libc.time
-
-
-# Typedef types with approximately the same semantics to provide their names to
-# Cython
-ctypedef unsigned char uint8_t
-ctypedef int int32_t
-ctypedef unsigned uint32_t
-ctypedef long int64_t
+from libc.stdint cimport intptr_t, uint8_t, int32_t, uint32_t, int64_t
 
 
 cdef extern from "grpc/support/alloc.h":
@@ -60,6 +53,10 @@ cdef extern from "grpc/grpc.h":
   void *grpc_slice_start_ptr "GRPC_SLICE_START_PTR" (grpc_slice s) nogil
   size_t grpc_slice_length "GRPC_SLICE_LENGTH" (grpc_slice s) nogil
 
+  const int GPR_MS_PER_SEC
+  const int GPR_US_PER_SEC
+  const int GPR_NS_PER_SEC
+
   ctypedef enum gpr_clock_type:
     GPR_CLOCK_MONOTONIC
     GPR_CLOCK_REALTIME
@@ -81,6 +78,8 @@ cdef extern from "grpc/grpc.h":
                                       gpr_clock_type target_clock) nogil
 
   gpr_timespec gpr_time_from_millis(int64_t ms, gpr_clock_type type) nogil
+  gpr_timespec gpr_time_from_nanos(int64_t ns, gpr_clock_type type) nogil
+  double gpr_timespec_to_micros(gpr_timespec t) nogil
 
   gpr_timespec gpr_time_add(gpr_timespec a, gpr_timespec b) nogil
 
@@ -121,7 +120,6 @@ cdef extern from "grpc/grpc.h":
     GRPC_STATUS_DATA_LOSS
     GRPC_STATUS__DO_NOT_USE
 
-  const char *GRPC_ARG_PRIMARY_USER_AGENT_STRING
   const char *GRPC_ARG_ENABLE_CENSUS
   const char *GRPC_ARG_MAX_CONCURRENT_STREAMS
   const char *GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH
@@ -189,12 +187,6 @@ cdef extern from "grpc/grpc.h":
   ctypedef struct grpc_channel_args:
     size_t arguments_length "num_args"
     grpc_arg *arguments "args"
-
-  ctypedef enum grpc_compression_level:
-    GRPC_COMPRESS_LEVEL_NONE
-    GRPC_COMPRESS_LEVEL_LOW
-    GRPC_COMPRESS_LEVEL_MED
-    GRPC_COMPRESS_LEVEL_HIGH
 
   ctypedef enum grpc_stream_compression_level:
     GRPC_STREAM_COMPRESS_LEVEL_NONE
@@ -325,7 +317,7 @@ cdef extern from "grpc/grpc.h":
     grpc_op_data data
 
   void grpc_init() nogil
-  void grpc_shutdown() nogil
+  void grpc_shutdown_blocking() nogil
   int grpc_is_initialized() nogil
 
   ctypedef struct grpc_completion_queue_factory:
@@ -390,6 +382,16 @@ cdef extern from "grpc/grpc.h":
       grpc_server *server, grpc_completion_queue *cq, void *tag) nogil
   void grpc_server_cancel_all_calls(grpc_server *server) nogil
   void grpc_server_destroy(grpc_server *server) nogil
+
+  char* grpc_channelz_get_top_channels(intptr_t start_channel_id)
+  char* grpc_channelz_get_servers(intptr_t start_server_id)
+  char* grpc_channelz_get_server(intptr_t server_id)
+  char* grpc_channelz_get_server_sockets(intptr_t server_id,
+                                         intptr_t start_socket_id,
+                                         intptr_t max_results)
+  char* grpc_channelz_get_channel(intptr_t channel_id)
+  char* grpc_channelz_get_subchannel(intptr_t subchannel_id)
+  char* grpc_channelz_get_socket(intptr_t socket_id)
 
 
 cdef extern from "grpc/grpc_security.h":

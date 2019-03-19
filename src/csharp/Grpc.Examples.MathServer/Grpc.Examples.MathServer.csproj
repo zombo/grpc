@@ -4,10 +4,8 @@
   <Import Project="..\Grpc.Core\Common.csproj.include" />
 
   <PropertyGroup>
-    <TargetFrameworks>net45;netcoreapp1.0</TargetFrameworks>
-    <AssemblyName>Grpc.Examples.MathServer</AssemblyName>
+    <TargetFrameworks>net45;netcoreapp2.1</TargetFrameworks>
     <OutputType>Exe</OutputType>
-    <PackageId>Grpc.Examples.MathServer</PackageId>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 

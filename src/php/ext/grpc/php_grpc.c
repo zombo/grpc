@@ -171,11 +171,13 @@ void prefork() {
 }
 
 void postfork_child() {
+  TSRMLS_FETCH();
+
   // loop through persistant list and destroy all underlying grpc_channel objs
   destroy_grpc_channels();
 
   // clear completion queue
-  grpc_php_shutdown_completion_queue();
+  grpc_php_shutdown_completion_queue(TSRMLS_C);
 
   // clean-up grpc_core
   grpc_shutdown();
@@ -187,7 +189,7 @@ void postfork_child() {
 
   // restart grpc_core
   grpc_init();
-  grpc_php_init_completion_queue();
+  grpc_php_init_completion_queue(TSRMLS_C);
 
   // re-create grpc_channel and point wrapped to it
   // unlock wrapped grpc channel mutex
@@ -200,7 +202,9 @@ void postfork_parent() {
 
 void register_fork_handlers() {
   if (getenv("GRPC_ENABLE_FORK_SUPPORT")) {
+#ifdef GRPC_POSIX_FORK_ALLOW_PTHREAD_ATFORK
     pthread_atfork(&prefork, &postfork_parent, &postfork_child);
+#endif  // GRPC_POSIX_FORK_ALLOW_PTHREAD_ATFORK
   }
 }
 
@@ -357,7 +361,7 @@ PHP_MSHUTDOWN_FUNCTION(grpc) {
     zend_hash_destroy(&grpc_target_upper_bound_map);
     grpc_shutdown_timeval(TSRMLS_C);
     grpc_php_shutdown_completion_queue(TSRMLS_C);
-    grpc_shutdown();
+    grpc_shutdown_blocking();
     GRPC_G(initialized) = 0;
   }
   return SUCCESS;

@@ -54,7 +54,8 @@ class DummyEndpoint : public grpc_endpoint {
                                                    destroy,
                                                    get_resource_user,
                                                    get_peer,
-                                                   get_fd};
+                                                   get_fd,
+                                                   can_track_err};
     grpc_endpoint::vtable = &my_vtable;
     ru_ = grpc_resource_user_create(Library::get().rq(), "dummy_endpoint");
   }
@@ -91,7 +92,7 @@ class DummyEndpoint : public grpc_endpoint {
   }
 
   static void read(grpc_endpoint* ep, grpc_slice_buffer* slices,
-                   grpc_closure* cb) {
+                   grpc_closure* cb, bool urgent) {
     static_cast<DummyEndpoint*>(ep)->QueueRead(slices, cb);
   }
 
@@ -99,8 +100,6 @@ class DummyEndpoint : public grpc_endpoint {
                     grpc_closure* cb, void* arg) {
     GRPC_CLOSURE_SCHED(cb, GRPC_ERROR_NONE);
   }
-
-  static grpc_workqueue* get_workqueue(grpc_endpoint* ep) { return nullptr; }
 
   static void add_to_pollset(grpc_endpoint* ep, grpc_pollset* pollset) {}
 
@@ -125,6 +124,7 @@ class DummyEndpoint : public grpc_endpoint {
   }
   static char* get_peer(grpc_endpoint* ep) { return gpr_strdup("test"); }
   static int get_fd(grpc_endpoint* ep) { return 0; }
+  static bool can_track_err(grpc_endpoint* ep) { return false; }
 };
 
 class Fixture {

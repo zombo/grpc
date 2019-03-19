@@ -4,9 +4,7 @@
   <Import Project="..\Grpc.Core\Common.csproj.include" />
 
   <PropertyGroup>
-    <TargetFrameworks>net45;netcoreapp1.0</TargetFrameworks>
-    <AssemblyName>Grpc.Examples</AssemblyName>
-    <PackageId>Grpc.Examples</PackageId>
+    <TargetFrameworks>net45;netcoreapp2.1</TargetFrameworks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
